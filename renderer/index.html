@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nordic Walls x WizArt</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+
+    <header class="header">
+      <div class="header-inner">
+        <div>
+          <div class="logo-row">
+            <span class="logo-nw">Nordic Walls</span>
+            <span class="logo-sep">×</span>
+            <span class="logo-wa">WizArt</span>
+          </div>
+          <p class="subtitle">Shopify → Wizart Import Pipeline</p>
+        </div>
+        <button class="btn-info" id="info-btn">Bra att veta</button>
+      </div>
+    </header>
+
+    <!-- Info modal -->
+    <div class="modal-overlay hidden" id="modal-overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title">Bra att veta</span>
+          <button class="modal-close" id="modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+
+          <div class="info-block">
+            <div class="info-label">Hur sorteras produkterna?</div>
+            <p>Appen delar upp produkterna i två separata importfiler — en för <strong>Wall Murals</strong> och en för <strong>Wallpapers</strong>. Sorteringen baseras på produktens sista bildfil:</p>
+            <ul>
+              <li>Filer som slutar med <code>-Pattern.jpg</code> (t.ex. <code>Watercolor-Tropical-Bird-Sand-Pattern.jpg</code>) hamnar i importfilen för <strong>Wallpapers</strong>.</li>
+              <li>Alla övriga produkter hamnar i importfilen för <strong>Wall Murals</strong>.</li>
+            </ul>
+          </div>
+
+          <div class="info-block">
+            <div class="info-label">SKU-fältet</div>
+            <p>Eftersom SKU inte används på hemsidan fylls det i stället med produktens unika <strong>handle</strong>, så att produkten kan identifieras i WizArt. Exempelvis är handle för <code>nordicwalls.com/products/watercolor-flora</code> helt enkelt <code>watercolor-flora</code>.</p>
+          </div>
+
+          <div class="info-block">
+            <div class="info-label">Justera mått i efterhand</div>
+            <p>Stämmer inte måtten i WizArt kan du redigera dem direkt i de genererade importfilerna (<code>wizart_wall_murals.xlsx</code> och <code>wizart_wallpapers.xlsx</code>) under kolumnerna <code>product_width</code>, <code>product_length</code> och <code>pattern_width</code>.</p>
+          </div>
+
+          <div class="info-block">
+            <div class="info-label">Importera i WizArt</div>
+            <p>Importering görs inne i WizArt under <strong>PIM → Import</strong>. Välj rätt produkttyp och ladda upp tillhörande zip-fil med bilder:</p>
+            <ul>
+              <li><strong>Wallpapers</strong> → <code>wizart_wallpapers.xlsx</code> + <code>wallpaper_images.zip</code></li>
+              <li><strong>Wall Murals</strong> → <code>wizart_wall_murals.xlsx</code> + <code>wall_murals_images.zip</code></li>
+            </ul>
+            <p>När importen är klar kan det se ut som att inga produkter laddats upp — t.ex. ett meddelande som <em>"Total rows imported: 0 out of 105"</em>. Det beror på att produkter som redan finns i systemet räknas som hoppade över och inte räknas in. De nya produkterna laddas upp ändå.</p>
+            <p>Om det gjorts stora ändringar på befintliga produkter kan ni radera allt i WizArt och köra om importen helt från början.</p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <main class="main">
+
+      <!-- Upload area -->
+      <section class="upload-section" id="upload-section">
+        <div class="drop-zone" id="drop-zone">
+          <div class="drop-icon">📄</div>
+          <p class="drop-label">Drop Shopify CSV here</p>
+          <p class="drop-sub">or</p>
+          <button class="btn btn-outline" id="browse-btn">Browse file…</button>
+        </div>
+        <div class="selected-file hidden" id="selected-file">
+          <span class="file-icon">✔</span>
+          <span class="file-name" id="file-name-label">—</span>
+          <button class="btn-text" id="change-btn">Change</button>
+        </div>
+      </section>
+
+      <!-- Action button -->
+      <div class="action-row">
+        <button class="btn btn-primary" id="start-btn" disabled>Start Import</button>
+      </div>
+
+      <!-- Terminal -->
+      <section class="terminal-section">
+        <div class="terminal-header">
+          <span class="terminal-dot red"></span>
+          <span class="terminal-dot yellow"></span>
+          <span class="terminal-dot green"></span>
+          <span class="terminal-title">Output</span>
+        </div>
+        <div class="terminal" id="terminal">
+          <span class="terminal-placeholder">Waiting for input…</span>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Status bar -->
+    <footer class="status-bar">
+      <span id="status-text">Ready</span>
+    </footer>
+
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

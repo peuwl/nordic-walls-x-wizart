@@ -1,0 +1,6 @@
+node_modules/
+dist/
+dist-python/
+*.log
+*.blockmap
+builder-debug.yml

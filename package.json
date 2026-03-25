@@ -1,0 +1,59 @@
+{
+  "name": "nordic-walls-x-wizart",
+  "version": "1.0.0",
+  "description": "Nordic Walls x WizArt — Shopify to Wizart import tool",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^29.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "build": {
+    "appId": "com.nordicwalls.wizart",
+    "productName": "Nordic Walls x WizArt",
+    "copyright": "Nordic Walls",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**",
+      "node_modules/**",
+      "!python/**",
+      "!templates/**",
+      "!dist-python/**",
+      "!dist/**"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "identity": null,
+      "icon": "assets/AppIcon.icns",
+      "target": [
+        { "target": "dmg", "arch": ["arm64", "x64"] }
+      ],
+      "extraResources": [
+        { "from": "dist-python/run_import", "to": "run_import" }
+      ]
+    },
+    "win": {
+      "icon": "assets/AppIcon.ico",
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "extraResources": [
+        { "from": "dist-python/run_import.exe", "to": "run_import.exe" }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
+  }
+}

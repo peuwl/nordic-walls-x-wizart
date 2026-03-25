@@ -1,0 +1,87 @@
+name: Build Nordic Walls x WizArt
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  # ── macOS ──────────────────────────────────────────────────────────────────
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: pip install pyinstaller pillow requests openpyxl
+
+      - name: Build Python binary (PyInstaller)
+        run: |
+          python -m PyInstaller \
+            --onefile \
+            --name run_import \
+            --distpath dist-python \
+            --add-data "templates:templates" \
+            python/run_import.py
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build Electron app (macOS)
+        run: npm run build:mac
+
+      - name: Upload macOS DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nordic-Walls-x-WizArt-macOS
+          path: dist/*.dmg
+
+  # ── Windows ────────────────────────────────────────────────────────────────
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: pip install pyinstaller pillow requests openpyxl
+
+      - name: Build Python binary (PyInstaller)
+        run: |
+          python -m PyInstaller `
+            --onefile `
+            --name run_import `
+            --distpath dist-python `
+            --add-data "templates;templates" `
+            python/run_import.py
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Build Electron app (Windows)
+        run: npm run build:win
+
+      - name: Upload Windows installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nordic-Walls-x-WizArt-Windows
+          path: dist/*.exe
