@@ -70,11 +70,11 @@ ipcMain.handle('start-import', async (event, csvPath) => {
 
     py.stdout.on('data', (data) => {
       const lines = data.toString().split('\n');
-      for (const line of lines) {
+      for (const rawLine of lines) {
+        const line = rawLine.replace(/\r$/, ''); // strip Windows \r
         if (!line) continue;
-        const zipMatch = line.match(/^ZIP_OUTPUT:(.+)$/);
-        if (zipMatch) {
-          zipPath = zipMatch[1].trim();
+        if (line.startsWith('ZIP_OUTPUT:')) {
+          zipPath = line.slice('ZIP_OUTPUT:'.length).trim();
         } else {
           mainWindow.webContents.send('log', line);
         }
