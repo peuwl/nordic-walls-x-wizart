@@ -14,6 +14,11 @@ import os
 import shutil
 import sys
 import warnings
+
+# Force UTF-8 output on Windows (avoids cp1252 UnicodeEncodeError)
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 from collections import OrderedDict
 from datetime import date
 from urllib.parse import urlparse

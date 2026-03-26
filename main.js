@@ -62,7 +62,9 @@ ipcMain.handle('start-import', async (event, csvPath) => {
   }
 
   return new Promise((resolve) => {
-    const py = spawn(cmd, args);
+    const py = spawn(cmd, args, {
+      env: { ...process.env, PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' },
+    });
 
     let zipPath = null;
 
