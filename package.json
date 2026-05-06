@@ -20,6 +20,7 @@
     "directories": {
       "output": "dist"
     },
+    "afterPack": "scripts/afterPack.js",
     "files": [
       "main.js",
       "preload.js",
