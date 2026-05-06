@@ -89,3 +89,38 @@ jobs:
         with:
           name: Nordic-Walls-x-WizArt-Windows
           path: dist/*.exe
+
+  # ── Publish public release ─────────────────────────────────────────────────
+  release:
+    needs: [build-mac, build-win]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten artifact files
+        run: |
+          mkdir -p release-files
+          find artifacts -type f \( -name "*.dmg" -o -name "*.exe" \) -exec cp {} release-files/ \;
+          ls -la release-files
+
+      - name: Publish "latest" rolling release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest build
+          body: |
+            Senaste byggda versionen av **Nordic Walls x WizArt**.
+
+            - **macOS (Apple Silicon)**: Nordic Walls x WizArt-*-arm64.dmg
+            - **macOS (Intel)**: Nordic Walls x WizArt-*.dmg
+            - **Windows**: Nordic Walls x WizArt Setup *.exe
+
+            Bygget uppdateras automatiskt vid varje commit till `main`.
+          files: release-files/*
+          prerelease: false
+          make_latest: "true"
