@@ -34,10 +34,17 @@
 
           <div class="info-block">
             <div class="info-label">Hur sorteras produkterna?</div>
-            <p>Appen delar upp produkterna i två separata importfiler — en för <strong>Wall Murals</strong> och en för <strong>Wallpapers</strong>. Sorteringen baseras på produktens sista bildfil:</p>
+            <p>Appen delar upp produkterna i två separata importfiler — en för <strong>Wall Murals</strong> och en för <strong>Wallpapers</strong>. Sorteringen styrs av metafältet <code>Product type</code> på varje produkt i Shopify (värdena <code>Wallpaper</code> eller <code>Mural</code>).</p>
+            <p>Saknas värdet faller appen tillbaka på produktens <code>Tags</code>-kolumn (<code>Patterns</code> = wallpaper, <code>Wall Murals</code> = mural). Saknas båda hamnar produkten i mural-filen.</p>
+          </div>
+
+          <div class="info-block">
+            <div class="info-label">File mode</div>
+            <p>Högst upp i appen kan du välja hur filen ska tolkas:</p>
             <ul>
-              <li>Filer som slutar med <code>-Pattern.jpg</code> (t.ex. <code>Watercolor-Tropical-Bird-Sand-Pattern.jpg</code>) hamnar i importfilen för <strong>Wallpapers</strong>.</li>
-              <li>Alla övriga produkter hamnar i importfilen för <strong>Wall Murals</strong>.</li>
+              <li><strong>Auto</strong> — appen sorterar produkterna automatiskt enligt ovan och genererar båda importfilerna.</li>
+              <li><strong>Wallpapers</strong> — alla produkter i filen behandlas som wallpapers. Endast <code>wizart_wallpapers.xlsx</code> + <code>wallpaper_images.zip</code> skapas.</li>
+              <li><strong>Murals</strong> — alla produkter i filen behandlas som murals. Endast <code>wizart_wall_murals.xlsx</code> + <code>wall_murals_images.zip</code> skapas.</li>
             </ul>
           </div>
 
@@ -67,6 +74,16 @@
     </div>
 
     <main class="main">
+
+      <!-- File mode selector -->
+      <div class="mode-selector" id="mode-selector" role="tablist" aria-label="File mode">
+        <span class="mode-label">File mode</span>
+        <div class="mode-options">
+          <button type="button" class="mode-btn active" data-mode="auto" role="tab" aria-selected="true">Auto</button>
+          <button type="button" class="mode-btn" data-mode="wallpapers" role="tab" aria-selected="false">Wallpapers</button>
+          <button type="button" class="mode-btn" data-mode="murals" role="tab" aria-selected="false">Murals</button>
+        </div>
+      </div>
 
       <!-- Upload area -->
       <section class="upload-section" id="upload-section">

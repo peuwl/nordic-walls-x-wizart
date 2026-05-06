@@ -45,10 +45,12 @@ MURAL_TEMPLATE    = os.path.join(TEMPLATES_DIR, "Default mapping template_Wall_m
 WALLPAPER_TEMPLATE = os.path.join(TEMPLATES_DIR, "Default mapping template_Wallpaper (2).xlsx")
 SHOP_BASE_URL = "https://nordicwalls.com/products"
 
-IMAGE_SRC_COL  = "Image Src"
-IMAGE_POS_COL  = "Image Position"
-REPLICABLE_COL = "Replicable Mural (product.metafields.custom.replicable_mural)"
-TILE_SIZE_COL  = "replicable_cm_tile_size (product.metafields.custom.replicable_cm_tile_size)"
+IMAGE_SRC_COL    = "Image Src"
+IMAGE_POS_COL    = "Image Position"
+REPLICABLE_COL   = "Replicable Mural (product.metafields.custom.replicable_mural)"
+TILE_SIZE_COL    = "Replicable Tile Size in CM (product.metafields.custom.replicable_cm_tile_size)"
+PRODUCT_TYPE_COL = "Product type (product.metafields.custom.product_type)"
+TAGS_COL         = "Tags"
 
 
 # ---------------------------------------------------------------------------
@@ -62,14 +64,32 @@ def get_filename(url):
     return os.path.basename(clean_url(url)) if url else ""
 
 
-def classify_last_image(url):
-    if not url:
-        return "other"
-    lower = clean_url(url).lower()
-    if lower.endswith("-pattern.jpg"):
+def classify_product(rows):
+    """
+    3-step classification:
+      1. 'Product type' metafield -> Wallpaper / Mural
+      2. 'Tags' column fallback   -> Patterns / Wall Murals / Murals
+      3. Default                  -> mural (matches old 'other' bucket behaviour)
+    """
+    pt = next(
+        (r.get(PRODUCT_TYPE_COL, "").strip() for r in rows if r.get(PRODUCT_TYPE_COL, "").strip()),
+        ""
+    ).lower()
+    if pt == "wallpaper":
         return "pattern"
-    if lower.endswith("-mural.jpg"):
+    if pt == "mural":
         return "mural"
+
+    tags_raw = next(
+        (r.get(TAGS_COL, "").strip() for r in rows if r.get(TAGS_COL, "").strip()),
+        ""
+    )
+    tags_lower = {t.strip().lower() for t in tags_raw.split(",") if t.strip()}
+    if "patterns" in tags_lower or "pattern" in tags_lower:
+        return "pattern"
+    if "wall murals" in tags_lower or "murals" in tags_lower or "mural" in tags_lower:
+        return "mural"
+
     return "other"
 
 
@@ -121,7 +141,13 @@ def parse_title(title):
 # ---------------------------------------------------------------------------
 # Step 1: Read & split CSV
 # ---------------------------------------------------------------------------
-def read_and_split(input_csv):
+def read_and_split(input_csv, mode="auto"):
+    """
+    mode: 'auto'        — classify each product via classify_product()
+          'wallpapers'  — treat all products as wallpapers
+          'murals'      — treat all products as murals
+    Returns (products, fieldnames, pattern_handles, mural_handles, other_handles).
+    """
     with open(input_csv, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames
@@ -133,8 +159,14 @@ def read_and_split(input_csv):
 
     pattern_handles, mural_handles, other_handles = [], [], []
     for handle, rows in products.items():
-        _, url, _ = get_last_image(rows)
-        kind = classify_last_image(url)
+        if mode == "wallpapers":
+            pattern_handles.append(handle)
+            continue
+        if mode == "murals":
+            mural_handles.append(handle)
+            continue
+
+        kind = classify_product(rows)
         if kind == "pattern":
             pattern_handles.append(handle)
         elif kind == "mural":
@@ -325,24 +357,45 @@ def generate_pattern_xlsx(pattern_handles, products, output_path):
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
-def main():
-    if len(sys.argv) < 3:
-        print("Usage: python3 run_import.py <shopify_export.csv> <output_dir>")
+def parse_args(argv):
+    """Parse positional CSV + output_dir args plus optional --mode <auto|wallpapers|murals>."""
+    mode = "auto"
+    positional = []
+    i = 1
+    while i < len(argv):
+        if argv[i] == "--mode" and i + 1 < len(argv):
+            mode = argv[i + 1].lower()
+            i += 2
+            continue
+        positional.append(argv[i])
+        i += 1
+    if mode not in ("auto", "wallpapers", "murals"):
+        print(f"ERROR: invalid --mode '{mode}' (expected auto|wallpapers|murals)")
         sys.exit(1)
+    if len(positional) < 2:
+        print("Usage: python3 run_import.py <shopify_export.csv> <output_dir> [--mode auto|wallpapers|murals]")
+        sys.exit(1)
+    return positional[0], positional[1], mode
 
-    input_csv  = sys.argv[1]
-    output_dir = sys.argv[2]
+
+def main():
+    input_csv, output_dir, mode = parse_args(sys.argv)
 
     if not os.path.exists(input_csv):
         print(f"ERROR: File not found: {input_csv}")
         sys.exit(1)
 
+    do_murals     = mode in ("auto", "murals")
+    do_wallpapers = mode in ("auto", "wallpapers")
+    mode_suffix   = {"auto": "", "wallpapers": " (Wallpapers)", "murals": " (Murals)"}[mode]
+
     now = __import__("datetime").datetime.now()
-    folder_name = f"Wizart Import Files - {now.strftime('%Y-%m-%d %H.%M')}"
+    folder_name = f"Wizart Import Files{mode_suffix} - {now.strftime('%Y-%m-%d %H.%M')}"
     out_dir  = os.path.join(output_dir, folder_name)
     misc_dir = os.path.join(out_dir, "~misc")
     os.makedirs(out_dir, exist_ok=True)
     os.makedirs(misc_dir, exist_ok=True)
+    print(f"Mode: {mode}", flush=True)
     print(f"Output folder: {out_dir}/\n", flush=True)
 
     pattern_csv  = os.path.join(misc_dir, "products_pattern.csv")
@@ -357,47 +410,64 @@ def main():
 
     # --- Step 1: Split CSV ---
     print("── Step 1: Splitting CSV ──────────────────────────────", flush=True)
-    products, fieldnames, pattern_handles, mural_handles, other_handles = read_and_split(input_csv)
-    write_csv(pattern_csv, pattern_handles, products, fieldnames)
-    write_csv(mural_csv,   mural_handles,   products, fieldnames)
-    write_csv(other_csv,   other_handles,   products, fieldnames, single_image=False)
-    print(f"  Pattern products : {len(pattern_handles)}", flush=True)
-    print(f"  Mural products   : {len(mural_handles)}", flush=True)
-    print(f"  Other products   : {len(other_handles)}", flush=True)
+    products, fieldnames, pattern_handles, mural_handles, other_handles = read_and_split(input_csv, mode=mode)
+    if do_wallpapers:
+        write_csv(pattern_csv, pattern_handles, products, fieldnames)
+        print(f"  Pattern products : {len(pattern_handles)}", flush=True)
+    if do_murals:
+        write_csv(mural_csv, mural_handles, products, fieldnames)
+        print(f"  Mural products   : {len(mural_handles)}", flush=True)
+    if mode == "auto":
+        write_csv(other_csv, other_handles, products, fieldnames, single_image=False)
+        print(f"  Other products   : {len(other_handles)}", flush=True)
 
     # --- Step 2: Download images ---
     print("\n── Step 2: Downloading images ─────────────────────────", flush=True)
-    print(f"Pattern images ({len(pattern_handles)}):", flush=True)
-    _, pattern_failures = download_images(pattern_handles, products, pattern_dir)
+    pattern_failures, mural_failures, other_failures = [], [], []
+    portrait_handles, landscape_handles = [], []
 
-    print(f"\nMural images ({len(mural_handles)}):", flush=True)
-    portrait_pairs, mural_failures = download_images(
-        mural_handles, products, mural_dir, check_portrait=True, portrait_dir=None
-    )
-    portrait_handles  = [h for h, _ in portrait_pairs]
-    landscape_handles = [h for h in mural_handles if h not in portrait_handles]
+    if do_wallpapers:
+        print(f"Pattern images ({len(pattern_handles)}):", flush=True)
+        _, pattern_failures = download_images(pattern_handles, products, pattern_dir)
 
-    print(f"\nOther images ({len(other_handles)}):", flush=True)
-    _, other_failures = download_images(
-        [h for h in other_handles if get_last_image(products[h])[1]],
-        products, mural_dir
-    )
+    if do_murals:
+        print(f"\nMural images ({len(mural_handles)}):", flush=True)
+        portrait_pairs, mural_failures = download_images(
+            mural_handles, products, mural_dir, check_portrait=True, portrait_dir=None
+        )
+        portrait_handles  = [h for h, _ in portrait_pairs]
+        landscape_handles = [h for h in mural_handles if h not in portrait_handles]
 
-    print(f"\n  Landscape murals : {len(landscape_handles)}", flush=True)
-    print(f"  Portrait murals  : {len(portrait_handles)}", flush=True)
-    write_csv(portrait_csv, portrait_handles, products, fieldnames)
+        if mode == "auto" and other_handles:
+            print(f"\nOther images ({len(other_handles)}):", flush=True)
+            _, other_failures = download_images(
+                [h for h in other_handles if get_last_image(products[h])[1]],
+                products, mural_dir
+            )
+
+        print(f"\n  Landscape murals : {len(landscape_handles)}", flush=True)
+        print(f"  Portrait murals  : {len(portrait_handles)}", flush=True)
+        write_csv(portrait_csv, portrait_handles, products, fieldnames)
 
     # --- Step 3: Generate Wizart xlsx ---
     print("\n── Step 3: Generating Wizart import files ─────────────", flush=True)
-    n_murals   = generate_mural_xlsx([landscape_handles, portrait_handles, other_handles], products, mural_xlsx)
-    n_patterns = generate_pattern_xlsx(pattern_handles, products, pattern_xlsx)
+    n_murals = n_patterns = 0
+    if do_murals:
+        groups = [landscape_handles, portrait_handles]
+        if mode == "auto":
+            groups.append(other_handles)
+        n_murals = generate_mural_xlsx(groups, products, mural_xlsx)
+    if do_wallpapers:
+        n_patterns = generate_pattern_xlsx(pattern_handles, products, pattern_xlsx)
 
     # --- Step 4: Zip image folders ---
     print("\n── Step 4: Zipping image folders ──────────────────────", flush=True)
-    shutil.make_archive(os.path.join(out_dir, "wall_murals_images"),  "zip", misc_dir, "mural_images")
-    shutil.make_archive(os.path.join(out_dir, "wallpaper_images"),    "zip", misc_dir, "pattern_images")
-    print("  wall_murals_images.zip created", flush=True)
-    print("  wallpaper_images.zip created", flush=True)
+    if do_murals:
+        shutil.make_archive(os.path.join(out_dir, "wall_murals_images"), "zip", misc_dir, "mural_images")
+        print("  wall_murals_images.zip created", flush=True)
+    if do_wallpapers:
+        shutil.make_archive(os.path.join(out_dir, "wallpaper_images"), "zip", misc_dir, "pattern_images")
+        print("  wallpaper_images.zip created", flush=True)
 
     # --- Step 5: Zip entire folder ---
     print("\n── Step 5: Zipping output folder ──────────────────────", flush=True)
@@ -411,8 +481,10 @@ def main():
     all_failures = pattern_failures + mural_failures + other_failures
     print(f"\n── Done ────────────────────────────────────────────────", flush=True)
     print(f"  Total products : {n_murals + n_patterns}", flush=True)
-    print(f"  Murals xlsx    : {n_murals} products", flush=True)
-    print(f"  Patterns xlsx  : {n_patterns} products", flush=True)
+    if do_murals:
+        print(f"  Murals xlsx    : {n_murals} products", flush=True)
+    if do_wallpapers:
+        print(f"  Patterns xlsx  : {n_patterns} products", flush=True)
     if all_failures:
         print(f"\n  Failed downloads ({len(all_failures)}):", flush=True)
         for u in all_failures:

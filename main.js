@@ -46,8 +46,9 @@ ipcMain.handle('select-file', async () => {
 });
 
 // ── IPC: run the Python pipeline ──────────────────────────────────────────────
-ipcMain.handle('start-import', async (event, csvPath) => {
+ipcMain.handle('start-import', async (event, csvPath, mode = 'auto') => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nw-wizart-'));
+  const validMode = ['auto', 'wallpapers', 'murals'].includes(mode) ? mode : 'auto';
 
   // In production (packaged), use the bundled PyInstaller binary.
   // In development, use the system python3.
@@ -55,10 +56,10 @@ ipcMain.handle('start-import', async (event, csvPath) => {
   if (app.isPackaged) {
     const binaryName = process.platform === 'win32' ? 'run_import.exe' : 'run_import';
     cmd  = path.join(process.resourcesPath, binaryName);
-    args = [csvPath, tempDir];
+    args = [csvPath, tempDir, '--mode', validMode];
   } else {
     cmd  = process.platform === 'win32' ? 'python' : 'python3';
-    args = [path.join(__dirname, 'python', 'run_import.py'), csvPath, tempDir];
+    args = [path.join(__dirname, 'python', 'run_import.py'), csvPath, tempDir, '--mode', validMode];
   }
 
   return new Promise((resolve) => {

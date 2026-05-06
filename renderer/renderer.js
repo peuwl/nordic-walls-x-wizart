@@ -10,9 +10,25 @@ const statusText     = document.getElementById('status-text');
 const infoBtn        = document.getElementById('info-btn');
 const modalOverlay   = document.getElementById('modal-overlay');
 const modalClose     = document.getElementById('modal-close');
+const modeSelector   = document.getElementById('mode-selector');
+const modeButtons    = modeSelector.querySelectorAll('.mode-btn');
 
 let selectedCsvPath  = null;
+let selectedMode     = 'auto';
 let importRunning    = false;
+
+/* ── Mode selector ──────────────────────────────────── */
+modeButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (importRunning) return;
+    selectedMode = btn.dataset.mode;
+    modeButtons.forEach(b => {
+      const active = b === btn;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+  });
+});
 
 /* ── File selection ─────────────────────────────────── */
 function setFile(filePath) {
@@ -130,8 +146,10 @@ startBtn.addEventListener('click', async () => {
   importRunning = true;
   startBtn.disabled = true;
   clearTerminal();
-  appendLine(`Starting import for: ${selectedCsvPath}\n`);
+  const modeLabel = { auto: 'Auto', wallpapers: 'Wallpapers only', murals: 'Murals only' }[selectedMode];
+  appendLine(`Starting import for: ${selectedCsvPath}`);
+  appendLine(`File mode: ${modeLabel}\n`);
   setStatus('Import running…');
 
-  await window.api.startImport(selectedCsvPath);
+  await window.api.startImport(selectedCsvPath, selectedMode);
 });
