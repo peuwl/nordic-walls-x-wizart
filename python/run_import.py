@@ -61,7 +61,15 @@ def clean_url(url):
 
 
 def get_filename(url):
-    return os.path.basename(clean_url(url)) if url else ""
+    """Return the local filename. .webp is normalized to .jpg because
+    Wizart's importer rejects WebP."""
+    if not url:
+        return ""
+    name = os.path.basename(clean_url(url))
+    base, ext = os.path.splitext(name)
+    if ext.lower() == ".webp":
+        return base + ".jpg"
+    return name
 
 
 def classify_product(rows):
@@ -107,11 +115,22 @@ def get_last_image(rows):
 
 
 def download_image(url, dest_path):
+    """Download `url` to `dest_path`. If the source is .webp but the destination
+    is .jpg (because Wizart rejects WebP), the image is decoded and re-encoded
+    as JPEG using Pillow."""
     try:
         resp = requests.get(url, timeout=30)
         resp.raise_for_status()
-        with open(dest_path, "wb") as f:
-            f.write(resp.content)
+        url_ext  = os.path.splitext(clean_url(url))[1].lower()
+        dest_ext = os.path.splitext(dest_path)[1].lower()
+        if url_ext == ".webp" and dest_ext in (".jpg", ".jpeg"):
+            from io import BytesIO
+            with Image.open(BytesIO(resp.content)) as img:
+                img.convert("RGB").save(dest_path, "JPEG", quality=92)
+            print(f"    (converted .webp -> .jpg)", flush=True)
+        else:
+            with open(dest_path, "wb") as f:
+                f.write(resp.content)
         return True
     except Exception as e:
         print(f"  ERROR downloading {url}: {e}", flush=True)
